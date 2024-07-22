@@ -48,8 +48,9 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
     tokenizer = CLIPTokenizer.from_pretrained(diffusers_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(diffusers_path, subfolder="text_encoder").to(
         dtype=torch.float16, device=device)
+
     image_encoder_path = os.path.join(pretrained_dir,"IP-Adapter")
-    snapshot_download(repo_id="h94/IP-Adapter",local_dir=image_encoder_path,allow_patterns=["config.json","model.safetensors"])
+    snapshot_download(repo_id="h94/IP-Adapter",local_dir=image_encoder_path,allow_patterns=["*.json","*.safetensors"],ignore_patterns=["*sd*"])
     image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder_path, subfolder="models/image_encoder").to(
         dtype=torch.float16, device=device)
     unet = UNet2DConditionModel.from_pretrained(diffusers_path, subfolder="unet").to(
@@ -67,7 +68,7 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
         output_dim=unet.config.cross_attention_dim,
         ff_mult=4
     )
-    image_proj = image_proj.to(dtype=torch.float16, device=args.device)
+    image_proj = image_proj.to(dtype=torch.float16, device=device)
 
     # set attention processor
     attn_procs = {}
@@ -89,17 +90,19 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
 
     unet.set_attn_processor(attn_procs)
     adapter_modules = torch.nn.ModuleList(unet.attn_processors.values())
-    adapter_modules = adapter_modules.to(dtype=torch.float16, device=args.device)
+    adapter_modules = adapter_modules.to(dtype=torch.float16, device=device)
     del st
 
     ref_unet = UNet2DConditionModel.from_pretrained("SG161222/Realistic_Vision_V4.0_noVAE", subfolder="unet").to(
         dtype=torch.float16,
-        device=args.device)
+        device=device)
     ref_unet.set_attn_processor(
         {name: CacheAttnProcessor2_0() for name in ref_unet.attn_processors.keys()})  # set cache
 
     # weights load
-    model_sd = torch.load(args.model_ckpt, map_location="cpu")["module"]
+    model_ckpt_dir = os.path.join(pretrained_dir,"IMAGDressing")
+    snapshot_download(repo_id="feishen29/IMAGDressing",local_dir=model_ckpt_dir,allow_patterns=["*.pt"])
+    model_sd = torch.load(os.path.join(model_ckpt_dir,'sd',"IMAGDressing-v1_512.pt"), map_location="cpu")["module"]
 
     ref_unet_dict = {}
     unet_dict = {}
