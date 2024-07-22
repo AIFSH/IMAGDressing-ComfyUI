@@ -93,7 +93,7 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
     adapter_modules = adapter_modules.to(dtype=torch.float16, device=device)
     del st
 
-    ref_unet = UNet2DConditionModel.from_pretrained("SG161222/Realistic_Vision_V4.0_noVAE", subfolder="unet").to(
+    ref_unet = UNet2DConditionModel.from_pretrained(diffusers_path, subfolder="unet").to(
         dtype=torch.float16,
         device=device)
     ref_unet.set_attn_processor(
