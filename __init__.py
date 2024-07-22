@@ -211,7 +211,7 @@ class IMAGDressingNode:
             num_inference_steps=50,
         ).images
 
-        out_img = torch.from_numpy(np.array(output[0]) / 255.0).unsequeeze(0)
+        out_img = torch.from_numpy(np.array(output[0]) / 255.0).unsqueeze(0)
         print(out_img.shape)
         return (out_img,)
 
