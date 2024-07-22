@@ -190,7 +190,8 @@ class IMAGDressingNode:
             negative_prompt = 'bare, naked, nude, undressed, monochrome, lowres, bad anatomy, worst quality, low quality'
 
         cloth = cloth.numpy()[0] * 255
-        clothes_img = cloth.astype(np.uint8)
+        clothes_np = cloth.astype(np.uint8)
+        clothes_img = Image.fromarray(clothes_np)
         clothes_img = resize_img(clothes_img)
         vae_clothes = img_transform(clothes_img).unsqueeze(0)
         ref_clip_image = clip_image_processor(images=clothes_img, return_tensors="pt").pixel_values
