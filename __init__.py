@@ -14,12 +14,18 @@ from huggingface_hub import snapshot_download
 from torchvision import transforms
 from transformers import CLIPImageProcessor
 from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
-from diffusers import UNet2DConditionModel, AutoencoderKL, DDIMScheduler
+from diffusers import UNet2DConditionModel, AutoencoderKL, DDIMScheduler,ControlNetModel
 from transformers import CLIPTextModel, CLIPTokenizer, CLIPVisionModelWithProjection
 
 from imagdressing.adapter.resampler import Resampler
 from imagdressing.dressing_sd.pipelines.IMAGDressing_v1_pipeline import IMAGDressing_v1
-from imagdressing.adapter.attention_processor import CacheAttnProcessor2_0, RefSAttnProcessor2_0, CAttnProcessor2_0
+from imagdressing.adapter.attention_processor import CacheAttnProcessor2_0, RefSAttnProcessor2_0, CAttnProcessor2_0,LoRAIPAttnProcessor2_0,LoraRefSAttnProcessor2_0
+
+from imagdressing.dressing_sd.pipelines.IMAGDressing_v1_pipeline_controlnet import IMAGDressing_v1 as IMAGDressing_v1_CN
+from imagdressing.dressing_sd.pipelines.IMAGDressing_v1_pipeline_ipa_controlnet import IMAGDressing_v1 as IMAGDressing_v1_CN_IPA
+import cv2
+from insightface.app import FaceAnalysis
+from insightface.utils import face_align
 
 
 device = "cuda" if cuda_malloc.cuda_malloc_supported() else "cpu"
@@ -37,7 +43,7 @@ def resize_img(input_image, max_side=640, min_side=512, size=None,
 
     return input_image
 
-def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
+def load_weights(use_case,seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
     generator = torch.Generator(device=device).manual_seed(seed)
     vae_path = os.path.join(pretrained_dir,"sd-vae-ft-mse")
     # stabilityai/sd-vae-ft-mse
@@ -83,11 +89,21 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
         elif name.startswith("down_blocks"):
             block_id = int(name[len("down_blocks.")])
             hidden_size = unet.config.block_out_channels[block_id]
-        if cross_attention_dim is None:
-            attn_procs[name] = RefSAttnProcessor2_0(name, hidden_size)
+    
+        if use_case == "ipa_controlnet":
+            # lora_rank = hidden_size // 2 # args.lora_rank
+            if cross_attention_dim is None:
+                attn_procs[name] = LoraRefSAttnProcessor2_0(name, hidden_size)
+            else:
+                attn_procs[name] = LoRAIPAttnProcessor2_0(hidden_size=hidden_size,
+                                                        cross_attention_dim=cross_attention_dim,
+                                                        scale=1.0, rank=128,
+                                                        num_tokens=4)
         else:
-            attn_procs[name] = CAttnProcessor2_0(name, hidden_size=hidden_size, cross_attention_dim=cross_attention_dim)
-
+            if cross_attention_dim is None:
+                attn_procs[name] = RefSAttnProcessor2_0(name, hidden_size)
+            else:
+                attn_procs[name] = CAttnProcessor2_0(name, hidden_size=hidden_size, cross_attention_dim=cross_attention_dim)
     unet.set_attn_processor(attn_procs)
     adapter_modules = torch.nn.ModuleList(unet.attn_processors.values())
     adapter_modules = adapter_modules.to(dtype=torch.float16, device=device)
@@ -134,23 +150,60 @@ def load_weights(seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
         steps_offset=1,
     )
 
-    pipe = IMAGDressing_v1(unet=unet, reference_unet=ref_unet, vae=vae, tokenizer=tokenizer,
-                         text_encoder=text_encoder, image_encoder=image_encoder,
-                         ImgProj=image_proj,
-                         scheduler=noise_scheduler,
-                         safety_checker=StableDiffusionSafetyChecker,
-                         feature_extractor=CLIPImageProcessor)
+    if use_case == "base":
+        pipe = IMAGDressing_v1(unet=unet, reference_unet=ref_unet, vae=vae, tokenizer=tokenizer,
+                            text_encoder=text_encoder, image_encoder=image_encoder,
+                            ImgProj=image_proj,
+                            scheduler=noise_scheduler,
+                            safety_checker=StableDiffusionSafetyChecker,
+                            feature_extractor=CLIPImageProcessor)
+    if use_case in ["controlnet","ipa_controlnet"]:
+        control_net_openpose_path = os.path.join(pretrained_dir,"control_v11p_sd15_openpose")
+        snapshot_download("lllyasviel/control_v11p_sd15_openpose",
+                          local_dir=control_net_openpose_path,
+                          ignore_patterns=["*.bin","*fp16*","*.png"])
+        control_net_openpose = ControlNetModel.from_pretrained(control_net_openpose_path,
+                                                           torch_dtype=torch.float16).to(device=args.device)
+
+    if use_case == "controlnet":
+        
+        pipe = IMAGDressing_v1_CN(vae=vae,reference_unet=ref_unet,unet=unet,
+                                  tokenizer=tokenizer,text_encoder=text_encoder,
+                                  controlnet=control_net_openpose,image_encoder=image_encoder,
+                                  scheduler=noise_scheduler,ImgProj=image_proj,
+                                  safety_checker=StableDiffusionSafetyChecker,
+                            feature_extractor=CLIPImageProcessor)
+    
+    if use_case == "ipa_controlnet":
+        ip_ckpt_path = os.path.join(pretrained_dir,"IP-Adapter","ip-adapter-faceid-plusv2_sd15.bin")
+        snapshot_download(repo_id="h94/IP-Adapter-FaceID",local_dir=image_encoder_path,
+                          allow_patterns=['*plusv2_sd15.bin'])
+        pipe = IMAGDressing_v1_CN_IPA(unet=unet, reference_unet=ref_unet, vae=vae, tokenizer=tokenizer,
+                            text_encoder=text_encoder, image_encoder=image_encoder,
+                            ip_ckpt=ip_ckpt_path,
+                            ImgProj=image_proj, controlnet=control_net_openpose,
+                            scheduler=noise_scheduler,
+                            safety_checker=StableDiffusionSafetyChecker,
+                            feature_extractor=CLIPImageProcessor)
     return pipe, generator
 
 class IMAGDressingNode:
     def __init__(self) -> None:
         self.pipe = None
+        self.use_case = None
         self.generator = None
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required":{
                 "cloth":("IMAGE",),
+                "use_case":(["base","controlnet","ipa_controlnet","cartoon"],),
+                "num_inference_steps":("INT",{
+                    "default": 50
+                }),
+                "guidance_scale":("FLOAT",{
+                    "default": 7.5
+                }),
                 "seed":("INT",{
                     "default": 42
                 })
@@ -158,6 +211,7 @@ class IMAGDressingNode:
             "optional":{
                 "pose":("IMAGE",),
                 "face": ("IMAGR",),
+                "prompt":("TEXT",)
             }
         }
     
@@ -170,9 +224,10 @@ class IMAGDressingNode:
 
     CATEGORY = "AIFSH_IMAGDressing"
 
-    def generate(self,cloth,seed,pose=None,face=None):
-        if self.pipe is None:
-            self.pipe, self.generator = load_weights(seed)
+    def generate(self,cloth,use_case,num_inference_steps,guidance_scale,
+                 seed,pose=None,face=None,prompt=None):
+        if self.use_case != use_case:
+            self.pipe, self.generator = load_weights(use_case,seed)
         print('====================== pipe load finish ===================')
         num_samples = 1
         clip_image_processor = CLIPImageProcessor()
@@ -183,11 +238,11 @@ class IMAGDressingNode:
             transforms.Normalize([0.5], [0.5]),
         ])
 
-        if face is None:
-            prompt = 'A beautiful woman'
-            prompt = prompt + ', best quality, high quality'
-            null_prompt = ''
-            negative_prompt = 'bare, naked, nude, undressed, monochrome, lowres, bad anatomy, worst quality, low quality'
+        
+        prompt = prompt
+        prompt = prompt + ', best quality, high quality'
+        null_prompt = ''
+        negative_prompt = 'bare, naked, nude, undressed, monochrome, lowres, bad anatomy, worst quality, low quality'
 
         cloth = cloth.numpy()[0] * 255
         clothes_np = cloth.astype(np.uint8)
@@ -196,20 +251,77 @@ class IMAGDressingNode:
         vae_clothes = img_transform(clothes_img).unsqueeze(0)
         ref_clip_image = clip_image_processor(images=clothes_img, return_tensors="pt").pixel_values
 
-        output = self.pipe(
-            ref_image=vae_clothes,
-            prompt=prompt,
-            ref_clip_image=ref_clip_image,
-            null_prompt=null_prompt,
-            negative_prompt=negative_prompt,
-            width=512,
-            height=640,
-            num_images_per_prompt=num_samples,
-            guidance_scale=7.5,
-            image_scale=1.0,
-            generator=self.generator,
-            num_inference_steps=50,
-        ).images
+        if self.use_case == "base":
+            output = self.pipe(
+                ref_image=vae_clothes,
+                prompt=prompt,
+                ref_clip_image=ref_clip_image,
+                null_prompt=null_prompt,
+                negative_prompt=negative_prompt,
+                width=512,
+                height=640,
+                num_images_per_prompt=num_samples,
+                guidance_scale=guidance_scale,
+                image_scale=1.0,
+                generator=self.generator,
+                num_inference_steps=num_inference_steps,
+            ).images
+        
+        if self.use_case in ["controlnet","ipa_controlnet"]:
+            pose = pose.numpy()[0] * 255
+            pose_np = pose.astype(np.uint8)
+            pose_image = Image.fromarray(pose_np)
+
+        if self.use_case == "controlnet":
+            output = self.pipe(
+                ref_image=vae_clothes,
+                prompt=prompt,
+                ref_clip_image=ref_clip_image,
+                pose_image=pose_image,
+                null_prompt=null_prompt,
+                negative_prompt=negative_prompt,
+                width=512,
+                height=640,
+                num_images_per_prompt=num_samples,
+                guidance_scale=guidance_scale,
+                image_scale=1.0,
+                generator=self.generator,
+                num_inference_steps=num_inference_steps,
+            ).images
+
+        if self.use_case == "ipa_controlnet":
+            app = FaceAnalysis(name="buffalo_l", providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+            app.prepare(ctx_id=0, det_size=(640, 640))
+
+            face = face.numpy()[0] * 255
+            face_np = face.astype(np.uint8)
+            image = cv2.cvtColor(face_np, cv2.COLOR_GRAY2BGR)
+            faces = app.get(image)
+
+            faceid_embeds = torch.from_numpy(faces[0].normed_embedding).unsqueeze(0)
+            face_image = face_align.norm_crop(image, landmark=faces[0].kps, image_size=224)
+            face_clip_image = clip_image_processor(images=face_image, return_tensors="pt").pixel_values
+
+            output = self.pipe(
+                ref_image=vae_clothes,
+                prompt=prompt,
+                ref_clip_image=ref_clip_image,
+                pose_image=pose_image,
+                face_clip_image=face_clip_image,
+                faceid_embeds=faceid_embeds,
+                null_prompt=null_prompt,
+                negative_prompt=negative_prompt,
+                width=512,
+                height=640,
+                num_images_per_prompt=num_samples,
+                guidance_scale=guidance_scale,
+                image_scale=0.9,
+                ipa_scale=0.9,
+                s_lora_scale= 0.2,
+                c_lora_scale= 0.2,
+                generator=self.generator,
+                num_inference_steps=num_inference_steps,
+            ).images
 
         out_img = torch.from_numpy(np.array(output[0]) / 255.0).unsqueeze(0)
         print(out_img.shape)
