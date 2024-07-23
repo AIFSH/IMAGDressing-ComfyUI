@@ -2,6 +2,8 @@
 a custom nodde for [IMAGDressing](https://github.com/muzishen/IMAGDressing), you can find workflow in [workflows](./workflows/)
 
 ## Example
+test on py3.10，2080ti 11gb，torch==2.3.0+cu121
+
 use case | cloth | pose | face | model_image | output 
 ----- | ---- | ---- | ---- | ---- | ----
 `base` | ![](./workflows/img/cloth.jpg) | | | | ![](./workflows/img/ComfyUI_temp_imnoj_00001_.png)
