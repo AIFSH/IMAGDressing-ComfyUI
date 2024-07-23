@@ -18,6 +18,8 @@ cd IMAGDressing-ComfyUI
 pip install -r requirements.txt
 ```
 weights will be downloaded from huggingface
+## Tutorial
+[Demo](https://www.bilibili.com/video/BV1Jb421J754)
 
 ## ask for answer as soon as you want
 wechat: aifsh_98
