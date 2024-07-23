@@ -12,7 +12,7 @@ import torch
 
 
 class Parsing:
-    def __init__(self, gpu_id: int):
+    def __init__(self, gpu_id: int,inpainting_path:str):
         self.gpu_id = gpu_id
         torch.cuda.set_device(gpu_id)
         session_options = ort.SessionOptions()
@@ -20,10 +20,9 @@ class Parsing:
         session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
         session_options.add_session_config_entry('gpu_id', str(gpu_id))
         self.session = ort.InferenceSession(
-            os.path.join(Path(__file__).absolute().parents[2].absolute(), 'ckpt/humanparsing/parsing_atr.onnx'),
+            os.path.join(inpainting_path, 'parsing_atr.onnx'),
             sess_options=session_options, providers=['CPUExecutionProvider'])
-        self.lip_session = ort.InferenceSession(os.path.join(
-            Path(__file__).absolute().parents[2].absolute(), 'ckpt/humanparsing/parsing_lip.onnx'),
+        self.lip_session = ort.InferenceSession(os.path.join(inpainting_path, 'parsing_lip.onnx'),
             sess_options=session_options, providers=['CPUExecutionProvider'])
 
     def __call__(self, input_image):

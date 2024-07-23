@@ -1,0 +1,297 @@
+{
+  "last_node_id": 7,
+  "last_link_id": 7,
+  "nodes": [
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        91,
+        141
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "4.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "LoadImage",
+      "pos": [
+        63,
+        504
+      ],
+      "size": {
+        "0": 315,
+        "1": 314.0000305175781
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            6
+          ],
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "1.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PreviewImage",
+      "pos": [
+        1021,
+        172
+      ],
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 4,
+      "type": "IMAGDressingNode",
+      "pos": [
+        535,
+        186
+      ],
+      "size": {
+        "0": 315,
+        "1": 234
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "cloth",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "prompt",
+          "type": "TEXT",
+          "link": 5,
+          "slot_index": 1
+        },
+        {
+          "name": "pose",
+          "type": "IMAGE",
+          "link": 6,
+          "slot_index": 2
+        },
+        {
+          "name": "face",
+          "type": "IMAGE",
+          "link": 7,
+          "slot_index": 3
+        },
+        {
+          "name": "model_image",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IMAGDressingNode"
+      },
+      "widgets_values": [
+        "ipa_controlnet",
+        50,
+        7.5,
+        881,
+        "randomize"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "TextNode",
+      "pos": [
+        791,
+        526
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "TEXT",
+          "type": "TEXT",
+          "links": [
+            5
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextNode"
+      },
+      "widgets_values": [
+        "A beautiful woman"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "LoadImage",
+      "pos": [
+        435,
+        488
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            7
+          ],
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "4 (1).jpg",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      4,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      5,
+      0,
+      4,
+      1,
+      "TEXT"
+    ],
+    [
+      6,
+      6,
+      0,
+      4,
+      2,
+      "IMAGE"
+    ],
+    [
+      7,
+      7,
+      0,
+      4,
+      3,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.1,
+      "offset": [
+        -63.218377827653285,
+        -111.21096709827685
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -10,6 +10,7 @@ charset-normalizer
 datasets
 deepspeed;sys_platform!='win32'
 diffusers
+peft
 dill
 einops
 filelock
@@ -54,3 +55,6 @@ xxhash
 yarl
 zipp
 insightface
+opencv-python
+onnxruntime;sys_platform == "win32"
+onnxruntime-gpu;sys_platform != "win32"
