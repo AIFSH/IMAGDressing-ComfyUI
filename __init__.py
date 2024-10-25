@@ -131,7 +131,7 @@ def load_weights(use_case,seed,repo_id="SG161222/Realistic_Vision_V4.0_noVAE"):
     # weights load
     model_ckpt_dir = os.path.join(pretrained_dir,"IMAGDressing")
     snapshot_download(repo_id="feishen29/IMAGDressing",local_dir=model_ckpt_dir,allow_patterns=["*.pt"])
-    model_sd = torch.load(os.path.join(model_ckpt_dir,'sd',"IMAGDressing-v1_512.pt"), map_location="cpu")["module"]
+    model_sd = torch.load(os.path.join(model_ckpt_dir,"IMAGDressing-v1_512.pt"), map_location="cpu")["module"]
 
     ref_unet_dict = {}
     unet_dict = {}
