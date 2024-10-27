@@ -8,6 +8,7 @@ from diffusers.schedulers import (
 )
 from diffusers.utils import is_accelerate_available
 from diffusers.pipelines.controlnet.pipeline_controlnet import *
+from diffusers.loaders import LoraLoaderMixin
 
 import os
 import sys

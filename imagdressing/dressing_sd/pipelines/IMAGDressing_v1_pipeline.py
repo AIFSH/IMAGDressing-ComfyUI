@@ -9,6 +9,7 @@ from diffusers.schedulers import (
 from diffusers.utils import is_accelerate_available
 from diffusers.pipelines.controlnet.pipeline_controlnet import *
 from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import *
+from diffusers.loaders import LoraLoaderMixin
 from adapter.attention_processor import RefSAttnProcessor2_0
 # from diffusers.pipelines import StableDiffusionPipeline
 
